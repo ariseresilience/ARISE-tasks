@@ -175,7 +175,7 @@ select {
     background: var(--bg); color: var(--ink); outline: none; transition: border-color 0.15s;
   }
   input[type="text"]:focus,
-input[type="datetime-local"]:focus,
+input[type="date"]:focus,
 textarea:focus,
 select:focus {
  border-color: rgba(28,27,24,0.35); }
@@ -239,7 +239,6 @@ select:focus {
 
 <header>
 
-  <div class="logo">ARISE Tasks TEST</div>
   
   <div class="logo">ARISE<span>Tasks</span></div>
   <div class="header-actions">
@@ -404,7 +403,6 @@ function fmtDueDate(iso) {
     month: 'short'
   });
 }
-``
 
   function isOverdue(task) {
   return (
@@ -414,15 +412,7 @@ function fmtDueDate(iso) {
   );
 }
 
-  function fmtDueDate(iso) {
-  if (!iso) return '';
-  return new Date(iso).toLocaleString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-}
+
   
 /* ---------- LOAD DATA ---------- */
 async function loadData() {
