@@ -293,23 +293,7 @@ select:focus {
   </div>
 
   <div class="kanban">
-<div class="list-filters" style="margin-bottom:20px;">
 
-  <select class="filter-select" id="kanban-sort" onchange="renderKanban()">
-    <option value="updated">Recently Updated</option>
-    <option value="due">Due Date (Earliest First)</option>
-    <option value="dueDesc">Due Date (Latest First)</option>
-    <option value="assignee">Assignee</option>
-    <option value="alpha">A-Z</option>
-    <option value="alphaDesc">Z-A</option>
-  </select>
-
-  <select class="filter-select" id="kanban-assignee-filter" onchange="renderKanban()">
-    <option value="">All Team Members</option>
-  </select>
-
-</div>
-    <div class="kanban">
       <div class="column">
         <div class="col-header">
           <div class="col-title"><div class="dot dot-todo"></div> To Do</div>
@@ -327,19 +311,7 @@ select:focus {
     </div>
   </div>
 
-.kanban-control {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 
-.kanban-control-label {
-  font-size: 12px;
-  color: var(--ink2);
-  font-weight: 500;
-  white-space: nowrap;
-}
-`
   
   <!-- LIST VIEW -->
   <div id="view-list" style="display:none">
