@@ -87,6 +87,10 @@
   }
   .task-card:hover { border-color: rgba(28,27,24,0.25); transform: translateY(-1px); }
   .task-card.done { opacity: 0.55; }
+  .task-card.overdue {
+  border-left: 4px solid #A02020;
+  background: #FFF8F8;
+}
   .task-title {
     font-size: 13px; font-weight: 500; margin-bottom: 8px;
     line-height: 1.45; padding-right: 28px;
@@ -312,6 +316,10 @@
       </select>
     </div>
     <div class="form-group">
+      <label>Due date (optional)</label>
+      <input type="datetime-local" id="f-due-date">
+    </div>
+    <div class="form-group">
       <label>Assign to</label>
       <div class="assignee-grid" id="assignee-picker"></div>
     </div>
@@ -381,23 +389,53 @@ function showTab(tab) {
   if (tab === 'team') renderTeam();
 }
 
+function fmtDueDate(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+``
+
+  function isOverdue(task) {
+  return (
+    task.dueDate &&
+    task.status !== 'done' &&
+    new Date(task.dueDate) < new Date()
+  );
+}
+
+  function fmtDueDate(iso) {
+  if (!iso) return '';
+  return new Date(iso).toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+  
 /* ---------- LOAD DATA ---------- */
 async function loadData() {
   const { data: tasksData } = await  sb.from("tasks").select("*");
   const { data: membersData } = await  sb.from("members").select("*");
   const { data: links } = await  sb.from("task_assignees").select("*");
 
-  data.tasks = tasksData.map(t => ({
-    id: t.id,
-    title: t.title,
-    description: t.description,
-    status: t.status,
-    created: t.created,
-    updated: t.updated,
-    assignees: links
-      .filter(l => l.task_id === t.id)
-      .map(l => l.member_name)
-  }));
+data.tasks = tasksData.map(t => ({
+  id: t.id,
+  title: t.title,
+  description: t.description,
+  status: t.status,
+  created: t.created,
+  updated: t.updated,
+  dueDate: t.due_date,
+  assignees: links
+    .filter(l => l.task_id === t.id)
+    .map(l => l.member_name)
+}));
 
   data.members = membersData.map(m => m.name);
 
@@ -417,8 +455,7 @@ function renderKanban() {
     }
 
     col.innerHTML = tasks.map(t => `
-      <div class="task-card${t.status==='done'?' done':''}" onclick="openEditModal('${t.id}')">
-        <button class="check-btn" onclick="event.stopPropagation();toggleDone('${t.id}')"
+    <div class="task-card ${isOverdue(t) ? 'overdue' : ''}${t.status==='done' ? ' done' : ''}" onclick="openEditModal('${t.id}')">        <button class="check-btn" onclick="event.stopPropagation();toggleDone('${t.id}')"
         title="${t.status==='done'?'Mark not done':'Mark done'}">✓</button>
 
         <div class="task-title">${escHtml(t.title)}</div>
@@ -429,7 +466,7 @@ function renderKanban() {
           ).join('')}
           
 <span class="task-date">
-  Created: ${fmtDate(t.created)}<br>
+  ${t.dueDate ? `Due: ${fmtDueDate(t.dueDate)}<br>` : ''}
   Updated: ${fmtDateTime(t.updated)}
 </span>
 
@@ -507,6 +544,7 @@ function openAddModal() {
   buildAssigneePicker([]);
   document.getElementById('delete-btn').style.display = 'none';
   document.getElementById('modal-overlay').classList.add('open');
+  document.getElementById('f-due-date').value = '';
 }
 
 function openEditModal(id) {
@@ -515,9 +553,14 @@ function openEditModal(id) {
   document.getElementById('f-title').value = t.title;
   document.getElementById('f-desc').value = t.description || '';
   document.getElementById('f-status').value = t.status;
+  document.getElementById('f-due-date').value =
+    t.dueDate
+      ? new Date(t.dueDate).toISOString().slice(0,16)
+      : '';
   document.getElementById('delete-btn').style.display = 'inline-block';
   buildAssigneePicker(t.assignees);
   document.getElementById('modal-overlay').classList.add('open');
+
 }
 
 function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
@@ -541,7 +584,8 @@ async function saveTask() {
 
   const id = editingId || Date.now().toString();
 
-
+const dueDate =
+  document.getElementById('f-due-date').value || null;
 
 const now = new Date().toISOString();
 
@@ -550,11 +594,12 @@ await sb.from("tasks").upsert({
   title,
   description: document.getElementById('f-desc').value.trim(),
   status: document.getElementById('f-status').value,
+  due_date: dueDate,
   created: editingId
     ? (data.tasks.find(t => t.id === editingId)?.created || now)
     : now,
   updated: now
-})
+});
 
 
 
