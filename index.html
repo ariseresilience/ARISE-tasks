@@ -257,16 +257,22 @@ select:focus {
 <!-- KANBAN VIEW -->
 <div id="view-kanban">
 
-  <div class="list-filters" style="margin-bottom:20px;">
-<select class="filter-select" id="kanban-sort" onchange="renderKanban()">
-  <option value="updated">Last Updated</option>
-  <option value="due">Due Date (Earliest First)</option>
-  <option value="dueDesc">Due Date (Latest First)</option>
-  <option value="assignee">Assignee</option>
-  <option value="alpha">A-Z</option>
-  <option value="alphaDesc">Z-A</option>
-</select>
-  </div>
+<div class="list-filters" style="margin-bottom:20px;">
+
+  <select class="filter-select" id="kanban-sort" onchange="renderKanban()">
+    <option value="updated">Recently Updated</option>
+    <option value="due">Due Date (Earliest First)</option>
+    <option value="dueDesc">Due Date (Latest First)</option>
+    <option value="assignee">Assignee</option>
+    <option value="alpha">A-Z</option>
+    <option value="alphaDesc">Z-A</option>
+  </select>
+
+  <select class="filter-select" id="kanban-assignee-filter" onchange="renderKanban()">
+    <option value="">All Team Members</option>
+  </select>
+
+</div>
     <div class="kanban">
       <div class="column">
         <div class="col-header">
@@ -492,9 +498,31 @@ data.tasks = tasksData.map(t => ({
 function renderKanban() {
   ['todo','done'].forEach(status => {
     const col = document.getElementById('col-'+status);
+const selectedAssignee =
+  document.getElementById('kanban-assignee-filter')?.value || '';
+
 const tasks = sortTasks(
-  data.tasks.filter(t => t.status === status)
-);    document.getElementById('count-'+status).textContent = tasks.length;
+  data.tasks.filter(t => {
+
+    if (t.status !== status) return false;
+
+    if (selectedAssignee === 'unassigned') {
+  if ((t.assignees || []).length > 0) {
+    return false;
+  }
+}
+else if (
+  selectedAssignee &&
+  !(t.assignees || []).includes(selectedAssignee)
+) {
+  return false;
+}
+
+    return true;
+
+  })
+);  
+    document.getElementById('count-'+status).textContent = tasks.length;
 
     if(!tasks.length) {
       col.innerHTML = '<div class="empty"><div class="empty-icon">○</div>No tasks here</div>';
@@ -566,6 +594,16 @@ function renderTeam() {
   `).join('');
 
   const sel = document.getElementById('filter-assignee');
+ const kanbanSel = document.getElementById('kanban-assignee-filter');
+
+if (kanbanSel) {
+  kanbanSel.innerHTML =
+    '<option value="">All Team Members</option>' +
+    '<option value="unassigned">Unassigned</option>' +
+    data.members
+      .map(m => `<option value="${escHtml(m)}">${escHtml(m)}</option>`)
+      .join('');
+}
   sel.innerHTML = '<option value="">All members</option>' +
     data.members.map(m=>`<option value="${escHtml(m)}">${escHtml(m)}</option>`).join('');
 }
