@@ -254,8 +254,19 @@ select:focus {
 </div>
 
 <main>
-  <!-- KANBAN VIEW -->
-  <div id="view-kanban">
+<!-- KANBAN VIEW -->
+<div id="view-kanban">
+
+  <div class="list-filters" style="margin-bottom:20px;">
+<select class="filter-select" id="kanban-sort" onchange="renderKanban()">
+  <option value="updated">Last Updated</option>
+  <option value="due">Due Date (Earliest First)</option>
+  <option value="dueDesc">Due Date (Latest First)</option>
+  <option value="assignee">Assignee</option>
+  <option value="alpha">A-Z</option>
+  <option value="alphaDesc">Z-A</option>
+</select>
+  </div>
     <div class="kanban">
       <div class="column">
         <div class="col-header">
@@ -412,7 +423,46 @@ function fmtDueDate(iso) {
   );
 }
 
+function sortTasks(tasks) {
+  const sortBy = document.getElementById('kanban-sort')?.value || 'updated';
 
+  return [...tasks].sort((a, b) => {
+
+    switch (sortBy) {
+
+      case 'due':
+        // Earliest due date first
+        if (!a.dueDate && !b.dueDate) return 0;
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+
+        return new Date(a.dueDate) - new Date(b.dueDate);
+
+      case 'dueDesc':
+        // Latest due date first
+        if (!a.dueDate && !b.dueDate) return 0;
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+
+        return new Date(b.dueDate) - new Date(a.dueDate);
+
+      case 'assignee':
+        const aName = (a.assignees?.[0] || '').toLowerCase();
+        const bName = (b.assignees?.[0] || '').toLowerCase();
+        return aName.localeCompare(bName);
+
+      case 'alpha':
+        return a.title.localeCompare(b.title);
+
+      case 'alphaDesc':
+        return b.title.localeCompare(a.title);
+
+      case 'updated':
+      default:
+        return new Date(b.updated) - new Date(a.updated);
+    }
+  });
+}
   
 /* ---------- LOAD DATA ---------- */
 async function loadData() {
@@ -442,8 +492,9 @@ data.tasks = tasksData.map(t => ({
 function renderKanban() {
   ['todo','done'].forEach(status => {
     const col = document.getElementById('col-'+status);
-    const tasks = data.tasks.filter(t=>t.status===status);
-    document.getElementById('count-'+status).textContent = tasks.length;
+const tasks = sortTasks(
+  data.tasks.filter(t => t.status === status)
+);    document.getElementById('count-'+status).textContent = tasks.length;
 
     if(!tasks.length) {
       col.innerHTML = '<div class="empty"><div class="empty-icon">○</div>No tasks here</div>';
