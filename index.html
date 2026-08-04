@@ -112,6 +112,18 @@
   .check-btn:hover { border-color: var(--accent); color: var(--accent); }
   .task-card.done .check-btn { background: var(--accent); border-color: var(--accent); color: #fff; }
 
+  .kanban-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kanban-control-label {
+  font-size: 12px;
+  color: var(--ink2);
+  white-space: nowrap;
+}
+  
   /* LIST VIEW */
   .list-view { display: flex; flex-direction: column; gap: 8px; }
   .list-filters {
@@ -257,6 +269,30 @@ select:focus {
 <!-- KANBAN VIEW -->
 <div id="view-kanban">
 
+  <div class="list-filters" style="margin-bottom:20px;">
+
+    <div class="kanban-control">
+      <span class="kanban-control-label">Sort:</span>
+      <select class="filter-select" id="kanban-sort" onchange="renderKanban()">
+        <option value="updated">Recently Updated</option>
+        <option value="due">Due Date (Earliest First)</option>
+        <option value="dueDesc">Due Date (Latest First)</option>
+        <option value="assignee">Assignee</option>
+        <option value="alpha">A-Z</option>
+        <option value="alphaDesc">Z-A</option>
+      </select>
+    </div>
+
+    <div class="kanban-control">
+      <span class="kanban-control-label">Filter by Assignee:</span>
+      <select class="filter-select" id="kanban-assignee-filter" onchange="renderKanban()">
+        <option value="">All Team Members</option>
+      </select>
+    </div>
+
+  </div>
+
+  <div class="kanban">
 <div class="list-filters" style="margin-bottom:20px;">
 
   <select class="filter-select" id="kanban-sort" onchange="renderKanban()">
@@ -291,6 +327,20 @@ select:focus {
     </div>
   </div>
 
+.kanban-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kanban-control-label {
+  font-size: 12px;
+  color: var(--ink2);
+  font-weight: 500;
+  white-space: nowrap;
+}
+`
+  
   <!-- LIST VIEW -->
   <div id="view-list" style="display:none">
     <div class="list-filters">
