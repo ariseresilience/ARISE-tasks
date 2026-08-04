@@ -466,6 +466,7 @@ function renderKanban() {
           ).join('')}
           
 <span class="task-date">
+  Created: ${fmtDate(t.created)}<br>
   ${t.dueDate ? `Due: ${fmtDueDate(t.dueDate)}<br>` : ''}
   Updated: ${fmtDateTime(t.updated)}
 </span>
