@@ -167,7 +167,7 @@
     text-transform: uppercase; color: var(--ink2); margin-bottom: 6px;
   }
   input[type="text"],
-input[type="datetime-local"],
+input[type="date"],
 textarea,
 select {
     font-family: 'DM Mono', monospace; font-size: 13px; width: 100%;
@@ -401,11 +401,10 @@ function showTab(tab) {
 
 function fmtDueDate(iso) {
   if (!iso) return '';
-  return new Date(iso).toLocaleString('en-GB', {
+  return new Date(iso).toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'short',
-    hour: '2-digit',
-    minute: '2-digit'
+    year: 'numeric'
   });
 }
 ``
@@ -565,9 +564,9 @@ function openEditModal(id) {
   document.getElementById('f-desc').value = t.description || '';
   document.getElementById('f-status').value = t.status;
   document.getElementById('f-due-date').value =
-    t.dueDate
-      ? new Date(t.dueDate).toISOString().slice(0,16)
-      : '';
+  t.dueDate
+    ? new Date(t.dueDate).toISOString().split('T')[0]
+    : '';
   document.getElementById('delete-btn').style.display = 'inline-block';
   buildAssigneePicker(t.assignees);
   document.getElementById('modal-overlay').classList.add('open');
