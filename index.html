@@ -7,6 +7,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap" rel="stylesheet">
 <style>
+  .task-progress {
+  font-size: 10px;
+  color: var(--ink3);
+  margin-bottom: 8px;
+}
   :root {
     --bg: #F5F2EB;
     --bg2: #EDEAE0;
@@ -58,6 +63,8 @@
   .tab.active { color: #A8C8A8; border-bottom-color: #A8C8A8; }
   main { padding: 28px 32px; max-width: 1100px; margin: 0 auto; }
 
+
+  
   /* KANBAN — 2 columns */
   .kanban { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
   .column {
@@ -397,7 +404,13 @@ const sb = createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ4c3BmZHB1YnN0dGV4aGdnZmttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5OTczNjUsImV4cCI6MjA5NjU3MzM2NX0.18OYrv6jUErWNA8OJ5LosGMzbyzRCYH189x30F1HEcU"
 );
 
-let data = { members: [], tasks: [] };
+let data = {
+  members: [],
+  tasks: [],
+  subtasks: []
+};
+
+  
 let editingId = null;
 
 /* ---------- HELPERS ---------- */
@@ -455,6 +468,22 @@ function fmtDueDate(iso) {
   );
 }
 
+  function getSubtaskProgress(taskId) {
+
+  const subtasks =
+    data.subtasks.filter(
+      s => s.task_id === taskId
+    );
+
+  return {
+    total: subtasks.length,
+    completed:
+      subtasks.filter(
+        s => s.completed
+      ).length
+  };
+}
+`
 function sortTasks(tasks) {
   const sortBy = document.getElementById('kanban-sort')?.value || 'updated';
 
@@ -503,6 +532,7 @@ async function loadData() {
   const { data: tasksData } = await  sb.from("tasks").select("*");
   const { data: membersData } = await  sb.from("members").select("*");
   const { data: links } = await  sb.from("task_assignees").select("*");
+  const { data: subtasksData } = await sb.from("subtasks").select("*");
 
 data.tasks = tasksData.map(t => ({
   id: t.id,
@@ -518,7 +548,9 @@ data.tasks = tasksData.map(t => ({
 }));
 
   data.members = membersData.map(m => m.name);
-
+  
+data.subtasks = subtasksData || [];
+  
   renderAll();
 }
 
@@ -561,8 +593,24 @@ else if (
     <div class="task-card ${isOverdue(t) ? 'overdue' : ''}${t.status==='done' ? ' done' : ''}" onclick="openEditModal('${t.id}')">        <button class="check-btn" onclick="event.stopPropagation();toggleDone('${t.id}')"
         title="${t.status==='done'?'Mark not done':'Mark done'}">✓</button>
 
-        <div class="task-title">${escHtml(t.title)}</div>
 
+
+<div class="task-title">
+  ${escHtml(t.title)}
+</div>
+
+${(() => {
+
+  const progress =
+    getSubtaskProgress(t.id);
+
+  return progress.total
+    ? `<div class="task-progress">
+         ${progress.completed}/${progress.total} subtasks complete
+       </div>`
+    : '';
+
+})()}
 
 
 
