@@ -7,19 +7,26 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap" rel="stylesheet">
 <style>
+
+  
 .subtask-row {
   display: flex;
+  align-items: center;
   gap: 8px;
   margin-bottom: 8px;
 }
 
-.subtask-row input[type="text"] {
+.subtask-completed {
+  flex-shrink: 0;
+}
+
+.subtask-input {
   flex: 1;
 }
 
 .subtask-delete {
-  width: 32px;
   cursor: pointer;
+  min-width: 32px;
 }
   
   .task-progress {
@@ -510,13 +517,18 @@ function fmtDueDate(iso) {
   };
 }
 
-function addSubtaskField(title = '') {
+function addSubtaskField(title = '', completed = false) {
 
   const row = document.createElement('div');
 
   row.className = 'subtask-row';
 
   row.innerHTML = `
+    <input
+      type="checkbox"
+      class="subtask-completed"
+      ${completed ? 'checked' : ''}>
+
     <input
       type="text"
       class="subtask-input"
@@ -581,7 +593,24 @@ function sortTasks(tasks) {
   });
 }
 
+function getSubtasksFromModal() {
 
+  return [...document.querySelectorAll('.subtask-row')]
+    .map(row => ({
+
+      title:
+        row.querySelector('.subtask-input')
+           .value
+           .trim(),
+
+      completed:
+        row.querySelector('.subtask-completed')
+           .checked
+
+    }))
+    .filter(s => s.title);
+
+}
   
 /* ---------- LOAD DATA ---------- */
 async function loadData() {
@@ -786,7 +815,13 @@ function openEditModal(id) {
 
 data.subtasks
   .filter(s => s.task_id === id)
-  .forEach(s => addSubtaskField(s.title));
+  .forEach(s =>
+    addSubtaskField(
+      s.title,
+      s.completed
+    )
+  );
+  
   document.getElementById('modal-overlay').classList.add('open');
 
 }
@@ -829,7 +864,32 @@ await sb.from("tasks").upsert({
   updated: now
 });
 
+await sb
+  .from("subtasks")
+  .delete()
+  .eq("task_id", id);
 
+  const subtasks =
+  getSubtasksFromModal()
+    .map((s, index) => ({
+
+      id: `${id}-sub-${index}`,
+
+      task_id: id,
+
+      title: s.title,
+
+      completed: s.completed
+
+    }));
+
+  if (subtasks.length) {
+
+  await sb
+    .from("subtasks")
+    .insert(subtasks);
+
+}
 
   await  sb.from("task_assignees").delete().eq("task_id", id);
 
