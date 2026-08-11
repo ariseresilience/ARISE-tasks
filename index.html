@@ -7,6 +7,21 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap" rel="stylesheet">
 <style>
+.subtask-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.subtask-row input[type="text"] {
+  flex: 1;
+}
+
+.subtask-delete {
+  width: 32px;
+  cursor: pointer;
+}
+  
   .task-progress {
   font-size: 10px;
   color: var(--ink3);
@@ -364,6 +379,18 @@ select:focus {
       <textarea id="f-desc" placeholder="Optional details..."></textarea>
     </div>
 
+    <div class="form-group">
+  <label>Subtasks</label>
+
+  <div id="subtask-list"></div>
+
+  <button
+    type="button"
+    class="btn-modal"
+    onclick="addSubtaskField()">
+    + Add Subtask
+  </button>
+</div>
 
 
     <div class="form-group">
@@ -483,6 +510,36 @@ function fmtDueDate(iso) {
   };
 }
 
+function addSubtaskField(title = '') {
+
+  const row = document.createElement('div');
+
+  row.className = 'subtask-row';
+
+  row.innerHTML = `
+    <input
+      type="text"
+      class="subtask-input"
+      value="${title}"
+      placeholder="Subtask">
+
+    <button
+      type="button"
+      class="subtask-delete"
+      onclick="this.parentElement.remove()">
+      ✕
+    </button>
+  `;
+
+  document
+    .getElementById('subtask-list')
+    .appendChild(row);
+}
+
+function clearSubtasks() {
+  document.getElementById('subtask-list').innerHTML = '';
+}
+  
 function sortTasks(tasks) {
   const sortBy = document.getElementById('kanban-sort')?.value || 'updated';
 
@@ -708,6 +765,7 @@ function openAddModal() {
   document.getElementById('f-status').value = 'todo';
   buildAssigneePicker([]);
   document.getElementById('delete-btn').style.display = 'none';
+  clearSubtasks();
   document.getElementById('modal-overlay').classList.add('open');
   document.getElementById('f-due-date').value = '';
 }
@@ -724,6 +782,11 @@ function openEditModal(id) {
     : '';
   document.getElementById('delete-btn').style.display = 'inline-block';
   buildAssigneePicker(t.assignees);
+  clearSubtasks();
+
+data.subtasks
+  .filter(s => s.task_id === id)
+  .forEach(s => addSubtaskField(s.title));
   document.getElementById('modal-overlay').classList.add('open');
 
 }
