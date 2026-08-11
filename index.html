@@ -840,6 +840,25 @@ function getSelectedAssignees() {
   return [...document.querySelectorAll('.assignee-chip.selected')].map(el=>el.textContent);
 }
 
+function getSubtasksFromModal() {
+
+  return [...document.querySelectorAll('.subtask-row')]
+    .map(row => ({
+
+      title:
+        row.querySelector('.subtask-input')
+          .value
+          .trim(),
+
+      completed:
+        row.querySelector('.subtask-completed')
+          .checked
+
+    }))
+    .filter(s => s.title);
+
+}
+  
 /* ---------- SAVE TASK ---------- */
 async function saveTask() {
   const title = document.getElementById('f-title').value.trim();
@@ -864,6 +883,8 @@ await sb.from("tasks").upsert({
   updated: now
 });
 
+
+  
 await sb
   .from("subtasks")
   .delete()
