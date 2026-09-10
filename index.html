@@ -34,6 +34,36 @@
   color: var(--ink3);
   margin-bottom: 8px;
 }
+
+/* Inline subtasks shown directly on the kanban / list card */
+.task-subtasks {
+  margin-bottom: 10px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--border);
+}
+.subtask-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 0;
+}
+.subtask-item-check {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+.subtask-item-text {
+  font-size: 11.5px;
+  color: var(--ink2);
+  line-height: 1.4;
+}
+.subtask-item-text.subtask-item-done {
+  text-decoration: line-through;
+  color: var(--ink3);
+}
+
   :root {
     --bg: #F5F2EB;
     --bg2: #EDEAE0;
@@ -517,6 +547,37 @@ function fmtDueDate(iso) {
   };
 }
 
+/* Renders the actual subtask checklist inline on a kanban/list card.
+   Each checkbox toggles completion directly, without opening the task modal. */
+function renderSubtasksInline(taskId) {
+  const subs = data.subtasks.filter(s => s.task_id === taskId);
+  if (!subs.length) return '';
+
+  return `<div class="task-subtasks" onclick="event.stopPropagation()">
+    ${subs.map(s => `
+      <label class="subtask-item">
+        <input
+          type="checkbox"
+          class="subtask-item-check"
+          ${s.completed ? 'checked' : ''}
+          onchange="toggleSubtaskInline('${s.id}')">
+        <span class="subtask-item-text${s.completed ? ' subtask-item-done' : ''}">${escHtml(s.title)}</span>
+      </label>
+    `).join('')}
+  </div>`;
+}
+
+async function toggleSubtaskInline(subtaskId) {
+  const sub = data.subtasks.find(s => s.id === subtaskId);
+  if (!sub) return;
+
+  await sb.from("subtasks")
+    .update({ completed: !sub.completed })
+    .eq("id", subtaskId);
+
+  loadData();
+}
+
 function addSubtaskField(title = '', completed = false) {
 
   const row = document.createElement('div');
@@ -696,6 +757,8 @@ ${(() => {
     : '';
 
 })()}
+
+${renderSubtasksInline(t.id)}
 
 
 
@@ -977,6 +1040,10 @@ sb
   })
   .on('postgres_changes', { event: '*', schema: 'public', table: 'members' }, () => {
     console.log('Members changed → refreshing');
+    loadData();
+  })
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'subtasks' }, () => {
+    console.log('Subtasks changed → refreshing');
     loadData();
   })
   .subscribe();
