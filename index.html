@@ -64,6 +64,31 @@
   color: var(--ink3);
 }
 
+/* Archive */
+.archive-btn {
+  position: absolute; top: 11px; right: 38px; width: 22px; height: 22px;
+  border-radius: 50%; border: 1.5px solid var(--border); background: none;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; font-size: 11px; color: var(--ink3);
+}
+.archive-btn:hover { border-color: var(--ink2); color: var(--ink); background: var(--bg2); }
+.archive-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 13px 14px; margin-bottom: 10px; box-shadow: var(--shadow);
+  cursor: pointer; transition: all 0.15s;
+}
+.archive-card:hover { border-color: rgba(28,27,24,0.25); transform: translateY(-1px); }
+.archive-card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-bottom: 8px;
+}
+.archive-desc {
+  font-size: 11.5px; color: var(--ink2); line-height: 1.5; margin-bottom: 10px;
+}
+.archive-note {
+  font-size: 11px; color: var(--ink3); margin-bottom: 16px;
+}
+
   :root {
     --bg: #F5F2EB;
     --bg2: #EDEAE0;
@@ -322,6 +347,7 @@ select:focus {
   <button class="tab active" id="tab-kanban" onclick="showTab('kanban')">Kanban</button>
   <button class="tab" id="tab-list" onclick="showTab('list')">All Tasks</button>
   <button class="tab" id="tab-team" onclick="showTab('team')">Team</button>
+  <button class="tab" id="tab-archive" onclick="showTab('archive')">Archive</button>
 </div>
 
 <main>
@@ -399,6 +425,18 @@ select:focus {
       </div>
     </div>
   </div>
+
+  <!-- ARCHIVE VIEW -->
+  <div id="view-archive" style="display:none">
+    <div class="archive-note">Tasks marked "Done" are archived automatically after 30 days. You can also archive or restore them manually below.</div>
+    <div class="list-filters">
+      <input class="filter-input" type="text" id="archive-search-input" placeholder="Search archive..." oninput="renderArchive()">
+      <select class="filter-select" id="archive-filter-assignee" onchange="renderArchive()">
+        <option value="">All members</option>
+      </select>
+    </div>
+    <div class="list-view" id="archive-container"></div>
+  </div>
 </main>
 
 <button class="fab" onclick="openAddModal()" title="Add task">+</button>
@@ -407,6 +445,7 @@ select:focus {
 <div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
   <div class="modal">
     <div class="modal-title" id="modal-title">New Task</div>
+    <div class="archive-note" id="archive-indicator" style="display:none">🗄 This task is archived.</div>
     <div class="form-group">
       <label>Task title *</label>
       <input type="text" id="f-title" placeholder="What needs to be done?">
@@ -448,6 +487,7 @@ select:focus {
     <div class="modal-actions">
       <button class="btn-modal" onclick="closeModal()">Cancel</button>
       <button class="btn-modal btn-danger btn-sm" id="delete-btn" style="display:none" onclick="deleteTask()">Delete</button>
+      <button class="btn-modal btn-sm" id="modal-archive-btn" style="display:none" onclick="toggleArchiveFromModal()"></button>
       <button class="btn-modal btn-modal-primary" onclick="saveTask()">Save Task</button>
     </div>
   </div>
@@ -505,7 +545,7 @@ function handleOverlayClick(e) {
 }
 
 function showTab(tab) {
-  ['kanban','list','team'].forEach(v => {
+  ['kanban','list','team','archive'].forEach(v => {
     document.getElementById('view-'+v).style.display = v === tab ? 'block' : 'none';
     const tabBtn = document.getElementById('tab-'+v);
     if (tabBtn) tabBtn.classList.toggle('active', v === tab);
@@ -513,6 +553,7 @@ function showTab(tab) {
 
   if (tab === 'list') renderList();
   if (tab === 'team') renderTeam();
+  if (tab === 'archive') renderArchive();
 }
 
 function fmtDueDate(iso) {
@@ -688,6 +729,8 @@ data.tasks = tasksData.map(t => ({
   created: t.created,
   updated: t.updated,
   dueDate: t.due_date,
+  archived: t.archived || false,
+  archivedAt: t.archived_at || null,
   assignees: links
     .filter(l => l.task_id === t.id)
     .map(l => l.member_name)
@@ -696,8 +739,53 @@ data.tasks = tasksData.map(t => ({
   data.members = membersData.map(m => m.name);
   
 data.subtasks = subtasksData || [];
-  
+
+  await autoArchiveStaleTasks();
+
   renderAll();
+}
+
+/* ---------- ARCHIVING ---------- */
+
+// Done tasks are archived automatically once they've sat untouched for this long.
+const ARCHIVE_AFTER_DAYS = 30;
+
+async function autoArchiveStaleTasks() {
+  const cutoff = Date.now() - ARCHIVE_AFTER_DAYS * 24 * 60 * 60 * 1000;
+
+  const stale = data.tasks.filter(t =>
+    t.status === 'done' &&
+    !t.archived &&
+    t.updated &&
+    new Date(t.updated).getTime() < cutoff
+  );
+
+  if (!stale.length) return;
+
+  const now = new Date().toISOString();
+
+  for (const t of stale) {
+    await sb.from("tasks")
+      .update({ archived: true, archived_at: now })
+      .eq("id", t.id);
+    t.archived = true;
+    t.archivedAt = now;
+  }
+}
+
+async function archiveTask(id) {
+  const now = new Date().toISOString();
+  await sb.from("tasks")
+    .update({ archived: true, archived_at: now })
+    .eq("id", id);
+  loadData();
+}
+
+async function restoreTask(id) {
+  await sb.from("tasks")
+    .update({ archived: false, archived_at: null, status: 'todo', updated: new Date().toISOString() })
+    .eq("id", id);
+  loadData();
 }
 
 /* ---------- RENDER (UNCHANGED) ---------- */
@@ -711,6 +799,7 @@ const tasks = sortTasks(
   data.tasks.filter(t => {
 
     if (t.status !== status) return false;
+    if (t.archived) return false;
 
     if (selectedAssignee === 'unassigned') {
   if ((t.assignees || []).length > 0) {
@@ -738,6 +827,7 @@ else if (
     col.innerHTML = tasks.map(t => `
     <div class="task-card ${isOverdue(t) ? 'overdue' : ''}${t.status==='done' ? ' done' : ''}" onclick="openEditModal('${t.id}')">        <button class="check-btn" onclick="event.stopPropagation();toggleDone('${t.id}')"
         title="${t.status==='done'?'Mark not done':'Mark done'}">✓</button>
+        ${t.status==='done' ? `<button class="archive-btn" onclick="event.stopPropagation();archiveTask('${t.id}')" title="Move to archive">🗄</button>` : ''}
 
 
 
@@ -787,6 +877,7 @@ function renderList() {
   const container = document.getElementById('list-container');
 
   let tasks = data.tasks.filter(t => {
+    if(t.archived) return false;
     if(search && !t.title.toLowerCase().includes(search)) return false;
     if(fs && t.status !== fs) return false;
     if(fa && !(t.assignees||[]).includes(fa)) return false;
@@ -834,6 +925,56 @@ if (kanbanSel) {
 }
   sel.innerHTML = '<option value="">All members</option>' +
     data.members.map(m=>`<option value="${escHtml(m)}">${escHtml(m)}</option>`).join('');
+
+  const archiveSel = document.getElementById('archive-filter-assignee');
+  if (archiveSel) {
+    archiveSel.innerHTML = '<option value="">All members</option>' +
+      data.members.map(m=>`<option value="${escHtml(m)}">${escHtml(m)}</option>`).join('');
+  }
+}
+
+function renderArchive() {
+  const search = document.getElementById('archive-search-input').value.toLowerCase();
+  const fa = document.getElementById('archive-filter-assignee').value;
+  const container = document.getElementById('archive-container');
+
+  let tasks = data.tasks.filter(t => {
+    if (!t.archived) return false;
+    if (search && !t.title.toLowerCase().includes(search)) return false;
+    if (fa && !(t.assignees||[]).includes(fa)) return false;
+    return true;
+  });
+
+  tasks = [...tasks].sort((a, b) =>
+    new Date(b.archivedAt || b.updated) - new Date(a.archivedAt || a.updated)
+  );
+
+  if (!tasks.length) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">🗄</div>No archived tasks</div>';
+    return;
+  }
+
+  container.innerHTML = tasks.map(t => `
+    <div class="archive-card" onclick="openEditModal('${t.id}')">
+      <div class="archive-card-header">
+        <div class="task-title" style="padding-right:0;margin-bottom:0;">${escHtml(t.title)}</div>
+        <button class="btn-modal btn-sm" onclick="event.stopPropagation();restoreTask('${t.id}')" title="Move back to To Do">↩ Restore</button>
+      </div>
+      ${t.description ? `<div class="archive-desc">${escHtml(t.description)}</div>` : ''}
+      ${renderSubtasksInline(t.id)}
+      <div class="task-meta">
+        ${(t.assignees||[]).map(a =>
+          `<div class="assignee-bubble" title="${escHtml(a)}">${initials(a)}</div>`
+        ).join('')}
+        <span class="task-date">
+          Created: ${fmtDate(t.created)}<br>
+          ${t.dueDate ? `Due: ${fmtDueDate(t.dueDate)}<br>` : ''}
+          Completed: ${fmtDateTime(t.updated)}<br>
+          Archived: ${fmtDateTime(t.archivedAt)}
+        </span>
+      </div>
+    </div>
+  `).join('');
 }
 
 function renderAll() { renderKanban(); renderList(); renderTeam(); }
@@ -857,6 +998,8 @@ function openAddModal() {
   document.getElementById('f-status').value = 'todo';
   buildAssigneePicker([]);
   document.getElementById('delete-btn').style.display = 'none';
+  document.getElementById('archive-indicator').style.display = 'none';
+  document.getElementById('modal-archive-btn').style.display = 'none';
   clearSubtasks();
   document.getElementById('modal-overlay').classList.add('open');
   document.getElementById('f-due-date').value = '';
@@ -865,6 +1008,7 @@ function openAddModal() {
 function openEditModal(id) {
   const t = data.tasks.find(t=>t.id===id);
   editingId = id;
+  document.getElementById('modal-title').textContent = 'Edit Task';
   document.getElementById('f-title').value = t.title;
   document.getElementById('f-desc').value = t.description || '';
   document.getElementById('f-status').value = t.status;
@@ -873,6 +1017,22 @@ function openEditModal(id) {
     ? new Date(t.dueDate).toISOString().split('T')[0]
     : '';
   document.getElementById('delete-btn').style.display = 'inline-block';
+
+  const archiveIndicator = document.getElementById('archive-indicator');
+  const archiveBtn = document.getElementById('modal-archive-btn');
+  if (t.archived) {
+    archiveIndicator.style.display = 'block';
+    archiveBtn.style.display = 'inline-block';
+    archiveBtn.textContent = '↩ Restore to To Do';
+  } else if (t.status === 'done') {
+    archiveIndicator.style.display = 'none';
+    archiveBtn.style.display = 'inline-block';
+    archiveBtn.textContent = '🗄 Archive';
+  } else {
+    archiveIndicator.style.display = 'none';
+    archiveBtn.style.display = 'none';
+  }
+
   buildAssigneePicker(t.assignees);
   clearSubtasks();
 
@@ -887,6 +1047,19 @@ data.subtasks
   
   document.getElementById('modal-overlay').classList.add('open');
 
+}
+
+async function toggleArchiveFromModal() {
+  if (!editingId) return;
+  const t = data.tasks.find(x => x.id === editingId);
+  if (!t) return;
+
+  if (t.archived) {
+    await restoreTask(editingId);
+  } else {
+    await archiveTask(editingId);
+  }
+  closeModal();
 }
 
 function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
@@ -934,12 +1107,26 @@ const dueDate =
 
 const now = new Date().toISOString();
 
+const newStatus = document.getElementById('f-status').value;
+const existingTask = editingId ? data.tasks.find(t => t.id === editingId) : null;
+
+// Archiving only ever applies to Done tasks — if the status is changed
+// away from Done, clear any archived state so the task reappears normally.
+let archived = existingTask ? existingTask.archived : false;
+let archivedAt = existingTask ? existingTask.archivedAt : null;
+if (newStatus !== 'done') {
+  archived = false;
+  archivedAt = null;
+}
+
 await sb.from("tasks").upsert({
   id,
   title,
   description: document.getElementById('f-desc').value.trim(),
-  status: document.getElementById('f-status').value,
+  status: newStatus,
   due_date: dueDate,
+  archived,
+  archived_at: archivedAt,
   created: editingId
     ? (data.tasks.find(t => t.id === editingId)?.created || now)
     : now,
